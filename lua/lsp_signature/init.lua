@@ -683,7 +683,7 @@ function M.on_InsertLeave()
   end, delay * 1000)
 
   log("Insert leave cleanup")
-  helper.cleanup_async(true, delay, true) -- defer close after 0.3s
+  helper.cleanup_async(true, delay, false) -- defer close after 0.3s
   status_line = { hint = "", label = "" }
 end
 
