@@ -292,8 +292,7 @@ local signature_handler = function(err, result, ctx, config)
   if _LSP_SIG_CFG.floating_window == false and config.trigger_from_cursor_hold then
     return {}, s, l
   end
-  local lines = {}
-  local off_y = 0
+  local off_y
   local ft = vim.api.nvim_buf_get_option(bufnr, "ft")
 
   ft = helper.ft2md(ft)
@@ -304,7 +303,7 @@ local signature_handler = function(err, result, ctx, config)
     ft = string.sub(ft, 0, dot_index - 1)
   end
 
-  lines = vim.lsp.util.convert_signature_help_to_markdown_lines(result, ft)
+  local lines = vim.lsp.util.convert_signature_help_to_markdown_lines(result, ft)
 
   if lines == nil or type(lines) ~= "table" then
     log("incorrect result", result)
@@ -431,7 +430,7 @@ local signature_handler = function(err, result, ctx, config)
     config.offset_x = config.offset_x - #_LSP_SIG_CFG.padding
   end
 
-  local display_opts = {}
+  local display_opts
   local cnts
 
   display_opts, off_y, cnts = helper.cal_pos(lines, config)
@@ -463,6 +462,7 @@ local signature_handler = function(err, result, ctx, config)
       -- vim.api.nvim_win_close(_LSP_SIG_CFG.winnr, true)
       _LSP_SIG_CFG.bufnr, _LSP_SIG_CFG.winnr = vim.lsp.util.open_floating_preview(lines, syntax, config)
 
+      -- vim.api.nvim_buf_set_option(_LSP_SIG_CFG.bufnr, "filetype", "")
       log("sig_cfg bufnr, winnr not valid recreate", _LSP_SIG_CFG.bufnr, _LSP_SIG_CFG.winnr)
       _LSP_SIG_CFG.label = label
       _LSP_SIG_CFG.client_id = client_id
@@ -473,10 +473,14 @@ local signature_handler = function(err, result, ctx, config)
     _LSP_SIG_CFG.client_id = client_id
 
     log("sig_cfg new bufnr, winnr ", _LSP_SIG_CFG.bufnr, _LSP_SIG_CFG.winnr)
+
+    -- vim.api.nvim_buf_set_option(_LSP_SIG_CFG.bufnr, "filetype", "lsp_signature")
   end
 
   if _LSP_SIG_CFG.transparency and _LSP_SIG_CFG.transparency > 1 and _LSP_SIG_CFG.transparency < 100 then
-    vim.api.nvim_win_set_option(_LSP_SIG_CFG.winnr, "winblend", _LSP_SIG_CFG.transparency)
+    if type(_LSP_SIG_CFG.winnr) == "number" and vim.api.nvim_win_is_valid(_LSP_SIG_CFG.winnr) then
+      vim.api.nvim_win_set_option(_LSP_SIG_CFG.winnr, "winblend", _LSP_SIG_CFG.transparency)
+    end
   end
   local sig = result.signatures
   -- if it is last parameter, close windows after cursor moved
@@ -521,7 +525,6 @@ local signature = function(opts)
   elseif #line_to_cursor_old < #line_to_cursor then
     delta = line_to_cursor:sub(#line_to_cursor_old)
   elseif not opts.trigger then
-    delta = ""
     line_to_cursor_old = line_to_cursor
     return
   end
@@ -769,6 +772,7 @@ M.deprecated = function(cfg)
     print("decorator deprecated, use hi_parameter instead")
   end
 end
+
 local function cleanup_logs(cfg)
   local log_path = cfg.log_path or _LSP_SIG_CFG.log_path or nil
   local fp = io.open(log_path, "r")
@@ -822,30 +826,19 @@ M.on_attach = function(cfg, bufnr)
   vim.cmd(shadow_cmd)
 
   if _LSP_SIG_CFG.toggle_key then
-    vim.api.nvim_buf_set_keymap(
-      bufnr,
-      "i",
-      _LSP_SIG_CFG.toggle_key,
-      [[<cmd>lua require('lsp_signature').toggle_float_win()<CR>]],
-      { silent = true, noremap = true, desc = "toggle signature" }
-    )
+    vim.keymap.set({ "i", "v", "s" }, _LSP_SIG_CFG.toggle_key, function()
+      require("lsp_signature").toggle_float_win()
+    end, { silent = true, noremap = true, buffer = bufnr, desc = "toggle signature" })
   end
   if _LSP_SIG_CFG.select_signature_key then
-    vim.api.nvim_buf_set_keymap(
-      bufnr,
-      "i",
-      _LSP_SIG_CFG.select_signature_key,
-      [[<cmd>lua require('lsp_signature').signature({trigger="NextSignature"})<CR>]],
-      { silent = true, noremap = true, desc = "select signature" }
-    )
+    vim.keymap.set("i", _LSP_SIG_CFG.select_signature_key, function()
+      require("lsp_signature").signature({ trigger = "NextSignature" })
+    end, { silent = true, noremap = true, buffer = bufnr, desc = "select signature" })
   end
   if _LSP_SIG_CFG.move_cursor_key then
-    vim.api.nvim_set_keymap(
-      "i",
-      _LSP_SIG_CFG.move_cursor_key,
-      [[<cmd>lua require('lsp_signature.helper').change_focus()<CR>]],
-      { silent = true, noremap = true, desc = "change cursor focus" }
-    )
+    vim.keymap.set("i", _LSP_SIG_CFG.move_cursor_key, function()
+      require("lsp_signature.helper").change_focus()
+    end, { silent = true, noremap = true, desc = "change cursor focus" })
   end
   _LSP_SIG_VT_NS = api.nvim_create_namespace("lsp_signature_vt")
 end

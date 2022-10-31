@@ -10,12 +10,27 @@ on:
       - master
 
 jobs:
-  selene:
-    name: Lint
-    runs-on: ubuntu-22.04
+  luacheck:
+    name: Luacheck
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - uses: NTBBloodbath/selene-action@v1.0.0
+
+      - name: Prepare
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y luarocks
+          sudo luarocks install luacheck
+      - name: Lint
+        run: sudo make lint
+
+  stylua:
+    name: stylua
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: JohnnyMorganz/stylua-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --config selene.toml --color always ./lua
+          # CLI arguments
+          args: --color always --check lua/
